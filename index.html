@@ -189,6 +189,127 @@
       }
       sendImageMessage(selectedFile);
     });
-  </script>
+  <script>
+  const API_BASE = "https://YOUR-PYTHON-BACKEND.onrender.com";
+
+  const chat = document.getElementById("chat");
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+
+  const imageInput = document.getElementById("imageInput");
+  const pickImageBtn = document.getElementById("pickImageBtn");
+  const sendImageBtn = document.getElementById("sendImageBtn");
+  const imageName = document.getElementById("imageName");
+
+  let selectedFile = null;
+
+  function addMessage(text, cls) {
+    const div = document.createElement("div");
+    div.className = "msg " + cls;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  async function sendTextMessage(text) {
+    addMessage(text, "user");
+    input.value = "";
+
+    const submitBtn = form.querySelector("button");
+    submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        addMessage("Error: backend returned " + res.status, "bot");
+        return;
+      }
+
+      const data = await res.json();
+      addMessage(data.reply || "No reply", "bot");
+    } catch (e) {
+      console.error(e);
+      addMessage("Error connecting to backend", "bot");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  async function sendImageMessage(file) {
+    addMessage("📷 [Image sent]", "user");
+    addMessage("Analyzing image...", "bot");
+
+    sendImageBtn.disabled = true;
+    pickImageBtn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${API_BASE}/vision`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        addMessage("Error: backend returned " + res.status, "bot");
+        return;
+      }
+
+      const data = await res.json();
+      const lastBot = Array.from(document.querySelectorAll(".bot")).pop();
+      if (lastBot && lastBot.textContent === "Analyzing image...") {
+        lastBot.textContent = data.reply || "No reply";
+      } else {
+        addMessage(data.reply || "No reply", "bot");
+      }
+    } catch (e) {
+      console.error(e);
+      addMessage("Error analyzing image", "bot");
+    } finally {
+      sendImageBtn.disabled = false;
+      pickImageBtn.disabled = false;
+      selectedFile = null;
+      imageName.textContent = "No image selected";
+    }
+  }
+
+  // form submit
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    sendTextMessage(text);
+  });
+
+  // image picker
+  pickImageBtn.addEventListener("click", () => {
+    imageInput.click();
+  });
+
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files[0];
+    selectedFile = file || null;
+    if (file) {
+      imageName.textContent = file.name;
+    } else {
+      imageName.textContent = "No image selected";
+    }
+  });
+
+  sendImageBtn.addEventListener("click", () => {
+    if (!selectedFile) {
+      alert("Choose an image first.");
+      return;
+    }
+    sendImageMessage(selectedFile);
+  });
+</script>
+
 </body>
 </html>
