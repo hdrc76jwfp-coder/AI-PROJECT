@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Copilot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { margin:0; background:#020617; color:#e5e7eb; font-family:system-ui; display:flex; flex-direction:column; height:100vh; }
+    header { padding:12px; border-bottom:1px solid #1f2937; text-align:center; font-weight:600; background:#020617; }
+    #chat { flex:1; padding:12px; overflow-y:auto; }
+    .msg { max-width:75%; margin-bottom:10px; padding:10px 12px; border-radius:10px; white-space:pre-wrap; font-size:15px; }
+    .user { background:#22c55e; color:#022c22; margin-left:auto; border-bottom-right-radius:3px; }
+    .bot { background:#111827; border:1px solid #1f2937; margin-right:auto; border-bottom-left-radius:3px; }
+    form { display:flex; gap:8px; padding:10px; border-top:1px solid #1f2937; background:#020617; }
+    input[type="text"] { flex:1; padding:9px 12px; border-radius:999px; border:1px solid #374151; background:#020617; color:#e5e7eb; font-size:15px; }
+    button { padding:9px 16px; border-radius:999px; background:#22c55e; color:#022c22; border:none; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:0.6; cursor:default; }
+
+    /* Image controls */
+    #image-bar {
+      display:flex;
+      gap:8px;
+      padding:6px 10px 4px;
+      border-top:1px solid #1f2937;
+      background:#020617;
+      align-items:center;
+      font-size:13px;
+      color:#9ca3af;
+    }
+    #imageName {
+      flex:1;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    #imageInput {
+      display:none;
+    }
+    .small-btn {
+      padding:6px 10px;
+      border-radius:999px;
+      background:#111827;
+      border:1px solid #374151;
+      color:#e5e7eb;
+      font-size:12px;
+    }
+  </style>
+</head>
+<body>
+  <header>My Copilot</header>
+
+  <div id="chat"></div>
+
+  <!-- Image upload controls -->
+  <div id="image-bar">
+    <span id="imageName">No image selected</span>
+    <button id="pickImageBtn" class="small-btn" type="button">Choose image</button>
+    <button id="sendImageBtn" class="small-btn" type="button">Send image</button>
+    <input id="imageInput" type="file" accept="image/*" />
+  </div>
+
+  <!-- Text chat form -->
+  <form id="form">
+    <input id="input" type="text" placeholder="Type a message..." autocomplete="off" />
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+
+    const imageInput = document.getElementById("imageInput");
+    const pickImageBtn = document.getElementById("pickImageBtn");
+    const sendImageBtn = document.getElementById("sendImageBtn");
+    const imageName = document.getElementById("imageName");
+
+    let selectedFile = null;
+
+    // Your Render backend base URL
+    const API_BASE = "https://ai-project-4ah9.onrender.com";
+
+    function addMessage(text, cls) {
+      const div = document.createElement("div");
+      div.className = "msg " + cls;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function sendTextMessage(text) {
+      addMessage(text, "user");
+      input.value = "";
+
+      const submitBtn = form.querySelector("button");
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        const data = await res.json();
+        addMessage(data.reply || "No reply", "bot");
+      } catch (e) {
+        console.error(e);
+        addMessage("Error connecting to backend", "bot");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    async function sendImageMessage(file) {
+      addMessage("📷 [Image sent]", "user");
+      addMessage("Analyzing image...", "bot");
+
+      sendImageBtn.disabled = true;
+      pickImageBtn.disabled = true;
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(`${API_BASE}/vision`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        const lastBot = Array.from(document.querySelectorAll(".bot")).pop();
+        if (lastBot && lastBot.textContent === "Analyzing image...") {
+          lastBot.textContent = data.reply || "No reply";
+        } else {
+          addMessage(data.reply || "No reply", "bot");
+        }
+      } catch (e) {
+        console.error(e);
+        addMessage("Error analyzing image", "bot");
+      } finally {
+        sendImageBtn.disabled = false;
+        pickImageBtn.disabled = false;
+        selectedFile = null;
+        imageName.textContent = "No image selected";
+      }
+    }
+
+    // Text form submit
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      sendTextMessage(text);
+    });
+
+    // Image picker button
+    pickImageBtn.addEventListener("click", () => {
+      imageInput.click();
+    });
+
+    // When user selects a file
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      selectedFile = file || null;
+      if (file) {
+        imageName.textContent = file.name;
+      } else {
+        imageName.textContent = "No image selected";
+      }
+    });
+
+    // Send image to /vision
+    sendImageBtn.addEventListener("click", () => {
+      if (!selectedFile) {
+        alert("Choose an image first.");
+        return;
+      }
+      sendImageMessage(selectedFile);
+    });
+  </script>
+</body>
+</html>
