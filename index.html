@@ -49,6 +49,7 @@
 <body>
   <header>My Copilot</header>
 
+  <!-- chat messages -->
   <div id="chat"></div>
 
   <!-- Image upload controls -->
@@ -66,6 +67,9 @@
   </form>
 
   <script>
+    // ✅ use your new backend URL
+    const API_BASE = "https://ai-project-backend-yuk6.onrender.com";
+
     const chat = document.getElementById("chat");
     const form = document.getElementById("form");
     const input = document.getElementById("input");
@@ -76,9 +80,6 @@
     const imageName = document.getElementById("imageName");
 
     let selectedFile = null;
-
-    // Your Render backend base URL
-    const API_BASE = "https://ai-project-4ah9.onrender.com";
 
     function addMessage(text, cls) {
       const div = document.createElement("div");
@@ -101,6 +102,12 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text }),
         });
+
+        if (!res.ok) {
+          addMessage("Error: backend returned " + res.status, "bot");
+          return;
+        }
+
         const data = await res.json();
         addMessage(data.reply || "No reply", "bot");
       } catch (e) {
@@ -126,6 +133,11 @@
           method: "POST",
           body: formData,
         });
+
+        if (!res.ok) {
+          addMessage("Error: backend returned " + res.status, "bot");
+          return;
+        }
 
         const data = await res.json();
         const lastBot = Array.from(document.querySelectorAll(".bot")).pop();
@@ -178,61 +190,5 @@
       sendImageMessage(selectedFile);
     });
   </script>
-  const API_URL = "https://ai-project-backend-yuk6.onrender.com";
 </body>
-  <script>
-  const API_URL = "https://ai-project-backend-yuk6.onrender.com";
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("chat-form");
-    const input = document.getElementById("message-input");
-    const messagesDiv = document.getElementById("messages");
-
-    function addMessage(text, who) {
-      const p = document.createElement("p");
-      p.textContent = text;
-      p.className = who === "user" ? "user-message" : "bot-message";
-      messagesDiv.appendChild(p);
-    }
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const message = input.value.trim();
-      if (!message) return;
-
-      // show user message
-      addMessage(message, "user");
-      input.value = "";
-
-      try {
-        const res = await fetch(`${API_URL}/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ message })
-        });
-
-        if (!res.ok) {
-          addMessage("Error: backend returned " + res.status, "bot");
-          return;
-        }
-
-        const data = await res.json();
-        addMessage(data.reply || "No reply from backend", "bot");
-      } catch (err) {
-        console.error(err);
-        addMessage("Error connecting to backend", "bot");
-      }
-    });
-  });
-</script>
 </html>
-<div id="chat">
-  <div id="messages"></div>
-
-  <form id="chat-form">
-    <input id="message-input" type="text" placeholder="Type a message..." />
-    <button type="submit">Send</button>
-  </form>
-</div>
